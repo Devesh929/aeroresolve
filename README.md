@@ -5,7 +5,7 @@
 **Operator: AeroBharat Airlines (ABR) • Powered by Snowflake Native AI & Streamlit in Snowflake (SiS)**
 
 [![Snowflake](https://img.shields.io/badge/Snowflake-Native%20AI-29B5E8?logo=snowflake&logoColor=white)](https://www.snowflake.com/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-in%20Snowflake%20(SiS)-FF4B4B?logo=streamlit&logoColor=white)](https://app.snowflake.com/me-central2.gcp/io91337/#/streamlit-apps/AERORESOLVE.APP.AERORESOLVE_COCKPIT)
+[![Streamlit](https://img.shields.io/badge/Streamlit-Live%20App-FF4B4B?logo=streamlit&logoColor=white)](https://aeroresolve.streamlit.app/)
 [![Model](https://img.shields.io/badge/Cortex%20LLM-Llama%203.1%208B%20%7C%2070B-purple)](https://docs.snowflake.com/en/user-guide/snowflake-cortex/llm-functions)
 [![Tests](https://img.shields.io/badge/Benchmark%20Pass%20Rate-100%25%20(32%2F32)-success)](docs/EVAL_RESULTS.md)
 [![Safety](https://img.shields.io/badge/Safety%20Boundary-Human--in--the--Loop-orange)](SECURITY.md)
@@ -19,15 +19,13 @@
 
 ---
 
-## 🌐 Live Cloud Deployment (Streamlit in Snowflake)
+## 🌐 Live Application URL
 
-The AeroResolve Operations Cockpit is deployed natively on Snowflake:
+The AeroResolve Operations Cockpit is live and accessible globally:
 
-* **Live Snowsight App URL**: [AeroResolve Cockpit on Snowsight](https://app.snowflake.com/me-central2.gcp/io91337/#/streamlit-apps/AERORESOLVE.APP.AERORESOLVE_COCKPIT)
-* **Application Object**: `AERORESOLVE.APP.AERORESOLVE_COCKPIT`
-* **Internal Stage**: `@AERORESOLVE.APP.STREAMLIT_STAGE`
-* **Query Warehouse**: `AERORESOLVE_WH`
-* **Runtime**: Python 3.10 • Streamlit • Snowpark Session Proxy
+* **Live Public Cockpit**: [**https://aeroresolve.streamlit.app/**](https://aeroresolve.streamlit.app/)
+* **Snowflake Native Backend**: Powered by Snowflake Native AI, Cortex Search & Dynamic Tables
+* **Runtime**: Python 3.10 • Streamlit • Snowpark Session & Snowflake Connector
 
 ---
 
