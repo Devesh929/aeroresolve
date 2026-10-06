@@ -1,0 +1,232 @@
+name: aeroresolve_aviation_health
+description: "AeroResolve Aircraft Health-to-Action semantic data model for fleet monitoring, predictive AOG prevention, repeat defect isolation, and maintenance readiness."
+
+tables:
+  - name: sem_fleet_aircraft
+    description: "Master dimension of commercial aircraft fleet with aircraft types, tail numbers, flight hours, cycles, and home bases."
+    base_table:
+      database: AERORESOLVE
+      schema: SEMANTIC
+      table: SEM_FLEET_AIRCRAFT
+    dimensions:
+      - name: aircraft_id
+        synonyms: ["tail number", "aircraft registration", "tail", "plane id", "aircraft"]
+        description: "Unique synthetic aircraft registration code, e.g. ABR-017, ABR-042."
+        expr: aircraft_id
+        data_type: VARCHAR
+        unique: true
+      - name: model_name
+        synonyms: ["aircraft model", "plane type", "variant"]
+        description: "Aircraft model name, e.g. AB-320N Neo, AB-321XLR, AB-220."
+        expr: model_name
+        data_type: VARCHAR
+      - name: home_base
+        synonyms: ["base", "home station", "hub"]
+        description: "Primary maintenance and scheduling hub station code."
+        expr: home_base
+        data_type: VARCHAR
+      - name: current_status
+        synonyms: ["aircraft operational status", "status", "health status"]
+        description: "Current status: ACTIVE, MAINTENANCE, AOG, DEFERRED."
+        expr: current_status
+        data_type: VARCHAR
+    measures:
+      - name: total_flight_hours
+        synonyms: ["flight hours", "total hours", "airframe hours"]
+        description: "Accumulated airframe flight hours."
+        expr: total_flight_hours
+        data_type: NUMBER
+        default_aggregation: sum
+      - name: total_flight_cycles
+        synonyms: ["flight cycles", "landings", "cycles"]
+        description: "Accumulated flight cycles."
+        expr: total_flight_cycles
+        data_type: NUMBER
+        default_aggregation: sum
+
+  - name: sem_flight_operations
+    description: "Operational flight schedules, airborne tracking, delay tracking, passenger load, and station routing."
+    base_table:
+      database: AERORESOLVE
+      schema: SEMANTIC
+      table: SEM_FLIGHT_OPERATIONS
+    dimensions:
+      - name: flight_id
+        synonyms: ["flight identifier", "sector id"]
+        description: "Unique operational flight identifier."
+        expr: flight_id
+        data_type: VARCHAR
+        unique: true
+      - name: flight_number
+        synonyms: ["flight code", "flight callsign", "flight no"]
+        description: "Commercial flight callsign, e.g. AB-402, AB-823."
+        expr: flight_number
+        data_type: VARCHAR
+      - name: origin_station
+        synonyms: ["departure station", "origin airport", "from"]
+        description: "IATA 3-letter origin airport code."
+        expr: origin_station
+        data_type: VARCHAR
+      - name: dest_station
+        synonyms: ["arrival station", "destination airport", "to"]
+        description: "IATA 3-letter destination airport code."
+        expr: dest_station
+        data_type: VARCHAR
+      - name: flight_status
+        synonyms: ["flight stage", "status"]
+        description: "Operational flight status: AIRBORNE, LANDED, SCHEDULED, DELAYED, CANCELLED."
+        expr: flight_status
+        data_type: VARCHAR
+    time_dimensions:
+      - name: scheduled_departure_ts
+        synonyms: ["scheduled departure time", "std"]
+        description: "Scheduled time of departure."
+        expr: scheduled_departure_ts
+        data_type: TIMESTAMP_NTZ
+      - name: scheduled_arrival_ts
+        synonyms: ["scheduled arrival time", "sta"]
+        description: "Scheduled time of arrival."
+        expr: scheduled_arrival_ts
+        data_type: TIMESTAMP_NTZ
+    measures:
+      - name: passenger_count
+        synonyms: ["pax count", "passengers onboard", "total passengers"]
+        description: "Total booked passengers on the flight."
+        expr: passenger_count
+        data_type: NUMBER
+        default_aggregation: sum
+      - name: connecting_passenger_count
+        synonyms: ["connecting passengers", "transit passengers", "transfer pax"]
+        description: "Count of passengers with downstream connections at the destination hub."
+        expr: connecting_passenger_count
+        data_type: NUMBER
+        default_aggregation: sum
+      - name: delay_arrival_minutes
+        synonyms: ["arrival delay", "delay mins", "minutes late"]
+        description: "Delay in arrival relative to schedule in minutes."
+        expr: delay_arrival_minutes
+        data_type: NUMBER
+        default_aggregation: avg
+
+  - name: sem_fault_history
+    description: "In-flight fault telemetry events, BITE codes, ACARS notifications, and ATA chapter classifications."
+    base_table:
+      database: AERORESOLVE
+      schema: SEMANTIC
+      table: SEM_FAULT_HISTORY
+    dimensions:
+      - name: fault_event_id
+        synonyms: ["fault id", "event id", "discrepancy id"]
+        description: "Unique fault event record identifier."
+        expr: fault_event_id
+        data_type: VARCHAR
+        unique: true
+      - name: fault_code
+        synonyms: ["bite code", "ecam message", "fault message code"]
+        description: "Standardized aircraft fault code, e.g. FC-21-001 (Avionics Cooling Fan Degradation)."
+        expr: fault_code
+        data_type: VARCHAR
+      - name: ata_chapter
+        synonyms: ["ata", "system chapter", "aircraft system"]
+        description: "Air Transport Association 2-digit chapter, e.g. 21 (Air Conditioning/Cooling), 24 (Electrical), 29 (Hydraulic), 73 (Engine Fuel)."
+        expr: ata_chapter
+        data_type: VARCHAR
+      - name: severity
+        synonyms: ["criticality", "urgency", "severity level"]
+        description: "Severity category: CRITICAL, MAJOR, MINOR, ADVISORY."
+        expr: severity
+        data_type: VARCHAR
+      - name: is_intermittent
+        synonyms: ["ghost fault", "transient defect", "intermittent flag"]
+        description: "True if fault signature appears and vanishes under specific altitude/vibration conditions."
+        expr: is_intermittent
+        data_type: BOOLEAN
+    time_dimensions:
+      - name: event_ts
+        synonyms: ["fault timestamp", "time of fault", "occurred at"]
+        description: "Exact timestamp when fault occurred."
+        expr: event_ts
+        data_type: TIMESTAMP_NTZ
+    measures:
+      - name: avionics_fan_current_a
+        synonyms: ["cooling fan current", "fan amps"]
+        description: "Avionics cooling fan current draw in Amperes."
+        expr: avionics_fan_current_a
+        data_type: NUMBER
+        default_aggregation: avg
+      - name: altitude_ft
+        synonyms: ["flight altitude", "flight level"]
+        description: "Aircraft pressure altitude in feet during event."
+        expr: altitude_ft
+        data_type: NUMBER
+        default_aggregation: avg
+
+  - name: sem_spare_parts_inventory
+    description: "Station parts inventory, stock on hand, reserved parts, and safety stock levels."
+    base_table:
+      database: AERORESOLVE
+      schema: SEMANTIC
+      table: SEM_SPARE_PARTS_INVENTORY
+    dimensions:
+      - name: station_code
+        synonyms: ["line station", "airport", "stock location"]
+        description: "IATA 3-letter station airport code."
+        expr: station_code
+        data_type: VARCHAR
+      - name: part_number
+        synonyms: ["part code", "p/n", "component part number"]
+        description: "Manufacturer part number, e.g. PART-X42-CONN (Connector Pin Assembly)."
+        expr: part_number
+        data_type: VARCHAR
+      - name: part_name
+        synonyms: ["item description", "spare part title"]
+        description: "Standard part description."
+        expr: part_name
+        data_type: VARCHAR
+      - name: is_stockout
+        synonyms: ["zero stock", "part unavailable", "stock depleted"]
+        description: "True if available quantity (on hand minus reserved) is 0 or less."
+        expr: is_stockout
+        data_type: BOOLEAN
+    measures:
+      - name: quantity_on_hand
+        synonyms: ["inventory count", "stock on hand", "qoh"]
+        description: "Current physical inventory count in stock."
+        expr: quantity_on_hand
+        data_type: NUMBER
+        default_aggregation: sum
+      - name: quantity_available
+        synonyms: ["unreserved stock", "usable inventory"]
+        description: "Quantity available for dispatch (quantity_on_hand - quantity_reserved)."
+        expr: quantity_available
+        data_type: NUMBER
+        default_aggregation: sum
+
+verified_queries:
+  - name: fleet_repeat_defect_rate_30d
+    question: "What is the fleet repeat-defect rate over the last 30 days?"
+    sql: "SELECT * FROM AERORESOLVE.SEMANTIC.V_VERIFIED_FLEET_REPEAT_DEFECT_RATE_30D;"
+
+  - name: abr017_previous_ata21_faults
+    question: "What are all previous occurrences of ATA 21 faults on ABR-017?"
+    sql: "SELECT * FROM AERORESOLVE.SEMANTIC.V_VERIFIED_ABR017_ATA21_HISTORY;"
+
+  - name: active_inflight_fault_signatures
+    question: "Which aircraft flying right now have active fault signatures?"
+    sql: "SELECT * FROM AERORESOLVE.SEMANTIC.V_VERIFIED_ACTIVE_INFLIGHT_FAULT_SIGNATURES;"
+
+  - name: del_tonight_ata21_capability
+    question: "What is the maintenance capability at DEL tonight for ATA 21 cooling loop repairs?"
+    sql: "SELECT * FROM AERORESOLVE.SEMANTIC.V_VERIFIED_DEL_TONIGHT_ATA21_CAPABILITY;"
+
+  - name: part_x42_conn_stock_and_transit
+    question: "Where is part PART-X42-CONN currently stocked, and what are transit times to DEL?"
+    sql: "SELECT * FROM AERORESOLVE.SEMANTIC.V_VERIFIED_PART_X42_CONN_STOCK_AND_TRANSIT;"
+
+  - name: abr017_downstream_rotation_24h
+    question: "What downstream flights are operated by ABR-017 in the next 24 hours?"
+    sql: "SELECT * FROM AERORESOLVE.SEMANTIC.V_VERIFIED_ABR017_DOWNSTREAM_ROTATION_24H;"
+
+  - name: recurring_faults_after_repair_60d
+    question: "Which repairs in the last 60 days were followed by recurring faults within 3 flights?"
+    sql: "SELECT * FROM AERORESOLVE.SEMANTIC.V_VERIFIED_RECURRING_FAULTS_AFTER_REPAIR_60D;"
