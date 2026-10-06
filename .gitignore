@@ -55,3 +55,4 @@ data/output/
 
 # Staging & Deployment bundles
 deploy/
+cloudflared.exe
