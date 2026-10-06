@@ -370,7 +370,8 @@ def get_active_flights():
 def get_telemetry_series(aircraft_id="ABR-017"):
     conn = get_snowflake_connection()
     cur = conn.cursor()
-    cur.execute("""
+    clean_id = str(aircraft_id).replace("'", "''")
+    cur.execute(f"""
         SELECT 
             event_ts,
             altitude_ft,
@@ -379,10 +380,10 @@ def get_telemetry_series(aircraft_id="ABR-017"):
             avionics_rack_temp_c,
             vibration_index
         FROM AERORESOLVE.CURATED.FACT_TELEMETRY
-        WHERE aircraft_id = %s
+        WHERE aircraft_id = '{clean_id}'
         ORDER BY event_ts ASC
         LIMIT 600
-    """, (aircraft_id,))
+    """)
     rows = cur.fetchall()
     cols = [desc[0] for desc in cur.description]
     cur.close()

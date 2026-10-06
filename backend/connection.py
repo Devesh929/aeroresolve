@@ -9,10 +9,56 @@ Supports:
 import os
 import snowflake.connector
 
+def _format_sql_value(v):
+    if v is None:
+        return "NULL"
+    elif isinstance(v, bool):
+        return "TRUE" if v else "FALSE"
+    elif isinstance(v, (int, float)):
+        return str(v)
+    else:
+        escaped = str(v).replace("'", "''")
+        return f"'{escaped}'"
+
+def _interpolate_sql(query, params):
+    if not params:
+        return query
+    if isinstance(params, (list, tuple)):
+        parts = query.split("%s")
+        if len(parts) - 1 != len(params):
+            return query
+        result = [parts[0]]
+        for i, val in enumerate(params):
+            result.append(_format_sql_value(val))
+            result.append(parts[i + 1])
+        return "".join(result)
+    elif isinstance(params, dict):
+        formatted_dict = {k: _format_sql_value(v) for k, v in params.items()}
+        return query % formatted_dict
+    return query
+
+class _SnowparkCursorProxy:
+    """Wrapper around cursor to safely interpolate %s queries for Snowflake SiS runtime."""
+    def __init__(self, cur):
+        self._cur = cur
+
+    def execute(self, query, params=None, *args, **kwargs):
+        if params is not None:
+            interpolated = _interpolate_sql(query, params)
+            return self._cur.execute(interpolated, *args, **kwargs)
+        return self._cur.execute(query, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._cur, name)
+
 class _SnowparkConnectionProxy:
     """Wrapper around active Snowpark session connection to prevent accidental closure in SiS."""
     def __init__(self, conn):
         self._conn = conn
+
+    def cursor(self, *args, **kwargs):
+        cur = self._conn.cursor(*args, **kwargs)
+        return _SnowparkCursorProxy(cur)
 
     def close(self):
         # In SiS, do not close the underlying active Snowpark session connection
