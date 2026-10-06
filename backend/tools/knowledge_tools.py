@@ -6,14 +6,49 @@ and Snowflake Cortex LLM (llama3.1-70b) reasoning.
 from typing import Dict, Any, List
 import json
 import snowflake.connector
-from snowflake.core import Root
 
 def search_technical_knowledge(conn: snowflake.connector.SnowflakeConnection, query: str, limit: int = 3) -> List[Dict[str, Any]]:
     """
     Executes semantic search against the Snowflake Cortex Search Service
-    AERO_TECH_MANUALS_SEARCH in AERORESOLVE.KNOWLEDGE.
+    AERO_TECH_MANUALS_SEARCH in AERORESOLVE.KNOWLEDGE using native Snowflake SQL.
     """
+    # 1. Primary: Native Snowflake SQL Cortex Search Preview (Zero extra dependencies)
     try:
+        cur = conn.cursor()
+        search_payload = json.dumps({
+            "query": query,
+            "columns": ["doc_id", "title", "ata_chapter", "doc_type", "summary", "content"],
+            "limit": limit
+        })
+        cur.execute(f"""
+            SELECT SNOWFLAKE.CORTEX.SEARCH_PREVIEW(
+                'AERORESOLVE.KNOWLEDGE.AERO_TECH_MANUALS_SEARCH',
+                '{search_payload}'
+            )
+        """)
+        row = cur.fetchone()
+        cur.close()
+        if row and row[0]:
+            data = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+            results = data.get("results", [])
+            if results:
+                return [
+                    {
+                        "doc_id": r.get("doc_id", ""),
+                        "title": r.get("title", ""),
+                        "ata_chapter": r.get("ata_chapter", ""),
+                        "doc_type": r.get("doc_type", ""),
+                        "summary": r.get("summary", ""),
+                        "content_excerpt": (r.get("content", "") or "")[:600] + "..."
+                    }
+                    for r in results
+                ]
+    except Exception:
+        pass
+
+    # 2. Secondary: REST SDK via snowflake.core if available
+    try:
+        from snowflake.core import Root
         root = Root(conn)
         search_svc = root.databases['AERORESOLVE'].schemas['KNOWLEDGE'].cortex_search_services['AERO_TECH_MANUALS_SEARCH']
         resp = search_svc.search(
@@ -32,8 +67,11 @@ def search_technical_knowledge(conn: snowflake.connector.SnowflakeConnection, qu
             }
             for r in resp.results
         ]
-    except Exception as e:
-        # Fallback SQL search if REST API client times out
+    except Exception:
+        pass
+
+    # 3. Tertiary: Fallback SQL table search
+    try:
         cur = conn.cursor()
         cur.execute("""
             SELECT doc_id, title, ata_chapter, doc_type, summary, SUBSTRING(content, 1, 600)
@@ -54,6 +92,8 @@ def search_technical_knowledge(conn: snowflake.connector.SnowflakeConnection, qu
             }
             for r in rows
         ]
+    except Exception:
+        return []
 
 def rank_hypotheses_with_cortex_llm(conn: snowflake.connector.SnowflakeConnection, evidence: Dict[str, Any]) -> Dict[str, Any]:
     """
