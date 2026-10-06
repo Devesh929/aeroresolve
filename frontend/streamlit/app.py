@@ -18,6 +18,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 
 from backend.connection import get_snowflake_connection
 from backend.orchestrator import AeroResolveOrchestrator
+from backend.agents.copilot_agent import AeroResolveCopilot
 
 # ---------------------------------------------------------------------
 # PAGE CONFIGURATION
@@ -531,12 +532,13 @@ with st.sidebar:
 # ---------------------------------------------------------------------
 # PRIMARY WORKFLOW TABS
 # ---------------------------------------------------------------------
-tab_investigation, tab_radar, tab_readiness, tab_verified, tab_audit = st.tabs([
+tab_investigation, tab_copilot, tab_radar, tab_readiness, tab_verified, tab_audit = st.tabs([
     "🔍 1. In-Flight Investigation & Action",
-    "📡 2. Fleet Health & Telemetry Divergence",
-    "📦 3. Destination Readiness & Logistics",
-    "⚡ 4. Cortex Semantic Verified Queries",
-    "🛡️ 5. Immutable Snowflake Audit Log"
+    "💬 2. Ask AeroResolve Copilot (AI Chat)",
+    "📡 3. Fleet Health & Telemetry Divergence",
+    "📦 4. Destination Readiness & Logistics",
+    "⚡ 5. Cortex Semantic Verified Queries",
+    "🛡️ 6. Immutable Snowflake Audit Log"
 ])
 
 # =====================================================================
@@ -743,7 +745,106 @@ with tab_investigation:
                 st.metric("Repair Effectiveness", "VERIFIED EFFECTIVE", "Zero Recurrence")
 
 # =====================================================================
-# TAB 2: FLEET HEALTH & TELEMETRY RADAR
+# TAB 2: AERORESOLVE COPILOT (FREE-FORM CONVERSATIONAL AI CHAT)
+# =====================================================================
+with tab_copilot:
+    st.markdown("""
+    <div class="aero-card aero-card-accent">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div>
+                <span class="step-tag" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border-color: rgba(14, 165, 233, 0.4);">
+                    CORTEX COPILOT ACTIVE
+                </span>
+                <span style="font-size: 1.15rem; font-weight: 800; color: #f8fafc; margin-left: 8px;">
+                    💬 AeroResolve Fleet Engineering Copilot
+                </span>
+            </div>
+            <div class="cmd-badge">
+                <span class="status-dot dot-green"></span>SNOWFLAKE CORTEX LLM (llama3.1-8b)
+            </div>
+        </div>
+        <div style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5;">
+            Ask any question regarding aircraft health, in-flight ghost faults, maintenance recurrence records, 
+            Cortex Search technical manuals (AMM, TSM, SIL, SB), or destination station spare part inventories. 
+            All responses are synthesized with grounded citations from the Snowflake Data Cloud.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Initial session state for messages
+    if "copilot_messages" not in st.session_state:
+        st.session_state.copilot_messages = [
+            {
+                "role": "assistant",
+                "content": (
+                    "Welcome to AeroResolve Engineering Copilot. I have real-time access to live fleet telemetry, "
+                    "30-day maintenance recurrence histories, 10 technical manuals in Cortex Search, and parts inventories across our hubs. "
+                    "What would you like to investigate?"
+                ),
+                "sources": ["CORTEX_SEARCH_ENGINE", "AERORESOLVE_SEMANTIC_LAYER"],
+                "latency_sec": 0.05
+            }
+        ]
+
+    # Quick Prompts Carousel
+    st.markdown("**Suggested Engineering Inquiries:**")
+    col_q1, col_q2, col_q3, col_q4 = st.columns(4)
+    quick_prompt = None
+    with col_q1:
+        if st.button("❓ Why did AVCC replacement fail?", use_container_width=True):
+            quick_prompt = "Why did the AVCC computer replacement on ABR-017 fail to eliminate FAULT-21-204?"
+    with col_q2:
+        if st.button("❓ Where is stock for PART-X42-CONN?", use_container_width=True):
+            quick_prompt = "Where can we find available stock for PART-X42-CONN to service an aircraft landing in Delhi?"
+    with col_q3:
+        if st.button("❓ What does SIL-21-042 recommend?", use_container_width=True):
+            quick_prompt = "What does Service Information Letter SIL-21-042 say about harness connector micro-fretting?"
+    with col_q4:
+        if st.button("❓ Fleet repeat rate for ATA 21?", use_container_width=True):
+            quick_prompt = "What is the fleet-wide repeat defect rate for ATA 21 over the trailing 30 days?"
+
+    # Display chat history
+    for msg in st.session_state.copilot_messages:
+        with st.chat_message(msg["role"], avatar="✈️" if msg["role"] == "assistant" else "👤"):
+            st.markdown(msg["content"])
+            if msg.get("sources"):
+                source_pills = " ".join([f"<span class='step-tag' style='font-size: 0.68rem; margin-right: 4px;'>📄 {s}</span>" for s in msg["sources"][:4]])
+                latency_tag = f"<span style='font-size: 0.72rem; color: #64748b; margin-left: 8px;'>⏱️ {msg.get('latency_sec', 1.0):.2f}s</span>" if msg.get("latency_sec") else ""
+                st.markdown(f"<div style='margin-top: 6px;'>{source_pills} {latency_tag}</div>", unsafe_allow_html=True)
+
+    # Chat Input handler
+    user_input = st.chat_input("Ask any question regarding aircraft, telemetry, technical manuals, or parts inventory...")
+    prompt_to_send = quick_prompt or user_input
+
+    if prompt_to_send:
+        # Add user message
+        st.session_state.copilot_messages.append({"role": "user", "content": prompt_to_send})
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt_to_send)
+
+        # Generate response
+        with st.chat_message("assistant", avatar="✈️"):
+            with st.spinner("Synthesizing answer with Snowflake Cortex Search & LLM..."):
+                conn = get_snowflake_connection()
+                copilot = AeroResolveCopilot()
+                ans_data = copilot.answer_query(conn, prompt_to_send)
+                conn.close()
+
+                st.markdown(ans_data["answer"])
+                if ans_data.get("sources"):
+                    source_pills = " ".join([f"<span class='step-tag' style='font-size: 0.68rem; margin-right: 4px;'>📄 {s}</span>" for s in ans_data["sources"][:4]])
+                    latency_tag = f"<span style='font-size: 0.72rem; color: #64748b; margin-left: 8px;'>⏱️ {ans_data['latency_sec']:.2f}s</span>"
+                    st.markdown(f"<div style='margin-top: 6px;'>{source_pills} {latency_tag}</div>", unsafe_allow_html=True)
+
+                st.session_state.copilot_messages.append({
+                    "role": "assistant",
+                    "content": ans_data["answer"],
+                    "sources": ans_data["sources"],
+                    "latency_sec": ans_data["latency_sec"]
+                })
+
+# =====================================================================
+# TAB 3: FLEET HEALTH & TELEMETRY RADAR
 # =====================================================================
 with tab_radar:
     st.markdown("### 📡 Fleet-Wide Telemetry Divergence & Radar")
