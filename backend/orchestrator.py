@@ -64,11 +64,14 @@ class AeroResolveOrchestrator:
         def log_step(agent_name: str, action: str, summary: str, evidence: Dict[str, Any]):
             nonlocal step_seq
             step_id = f"STEP-{case_id[-6:]}-{step_seq:02d}"
-            cur.execute("""
-                INSERT INTO AERORESOLVE.AUDIT.AGENT_STEP (
-                    step_id, case_id, step_sequence, agent_name, step_action, summary_for_ui, evidence_gathered, created_ts
-                ) SELECT %s, %s, %s, %s, %s, %s, PARSE_JSON(%s), CURRENT_TIMESTAMP()
-            """, (step_id, case_id, step_seq, agent_name, action, summary, json.dumps(evidence)))
+            try:
+                cur.execute("""
+                    INSERT INTO AERORESOLVE.AUDIT.AGENT_STEP (
+                        step_id, case_id, step_sequence, agent_name, step_action, summary_for_ui, evidence_gathered, created_ts
+                    ) SELECT %s, %s, %s, %s, %s, %s, PARSE_JSON(%s), CURRENT_TIMESTAMP()
+                """, (step_id, case_id, step_seq, agent_name, action, summary, json.dumps(evidence)))
+            except Exception:
+                pass
             steps_log.append({
                 "step_seq": step_seq,
                 "agent": agent_name,

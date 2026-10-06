@@ -17,7 +17,7 @@ def _format_sql_value(v):
     elif isinstance(v, (int, float)):
         return str(v)
     else:
-        escaped = str(v).replace("'", "''")
+        escaped = str(v).replace("\\", "\\\\").replace("'", "''")
         return f"'{escaped}'"
 
 def _interpolate_sql(query, params):
