@@ -13,8 +13,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+# Add current directory and project root to sys.path for local and SiS execution
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+if _current_dir not in sys.path:
+    sys.path.append(_current_dir)
+_repo_root = os.path.abspath(os.path.join(_current_dir, "../.."))
+if _repo_root not in sys.path:
+    sys.path.append(_repo_root)
 
 from backend.connection import get_snowflake_connection
 from backend.orchestrator import AeroResolveOrchestrator

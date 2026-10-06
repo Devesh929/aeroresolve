@@ -1,0 +1,9 @@
+name: aeroresolve_sis_env
+channels:
+  - snowflake
+dependencies:
+  - python=3.10
+  - streamlit
+  - pandas
+  - plotly
+  - snowflake-snowpark-python
